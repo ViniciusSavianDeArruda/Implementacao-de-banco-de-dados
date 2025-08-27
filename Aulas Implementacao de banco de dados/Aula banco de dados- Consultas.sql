@@ -1,0 +1,170 @@
+--- Aula Implementacao de banco de dados - 05/08/25 ---
+-- Consultas SQL Banco de dados empresa
+
+-- DISTINCT
+SELECT DISTINCT FUNCIONARIO.SALARIO
+FROM FUNCIONARIO;
+GO
+
+---WHERE
+SELECT *FROM FUNCIONARIO WHERE salario = 25000;
+
+---AND
+SELECT * FROM FUNCIONARIO WHERE sexo ='M' AND SALARIO > 30000;
+
+---ON
+SELECT *FROM FUNCIONARIO AS F 
+WHERE F.endereco LIKE '%S�o Paulo%' 
+	OR F.Endereco LIKE '%Curitiba%';
+
+
+-- NOT
+SELECT *
+FROM FUNCIONARIO AS F 
+WHERE NOT F.endereco LIKE '%S�o Paulo%' 
+GO
+
+-- ORDER BY ASC/DESC
+SELECT * 
+FROM FUNCIONARIO AS F
+ORDER  BY F.salario DESC;
+GO
+
+
+--NULL IS NULL/ IS NOT NULL
+SELECT *
+FROM FUNCIONARIO 
+WHERE Cpf_supervisor IS NULL;
+GO
+
+
+SELECT *
+FROM FUNCIONARIO 
+WHERE Cpf_supervisor IS NOT NULL;
+GO
+
+---TOP 
+SELECT TOP 3 *
+FROM FUNCIONARIO
+WHERE Cpf_supervisor IS NOT NULL
+ORDER BY Salario DESC;
+
+
+--MIN() / MAX()
+SELECT MIN(salario)
+FROM FUNCIONARIO;
+
+SELECT *
+FROM FUNCIONARIO
+WHERE Salario = (SELECT MIN(Salario)
+					FROM FUNCIONARIO);
+
+SELECT *
+FROM FUNCIONARIO
+WHERE Salario = (SELECT MAX(Salario)
+                 FROM FUNCIONARIO);
+GO
+
+
+
+GO
+DECLARE @Salario_Min DECIMAL(10,2);
+SELECT @Salario_Min = MIN(Salario)
+FROM FUNCIONARIO;
+
+SELECT *
+FROM FUNCIONARIO
+WHERE Salario = @Salario_Min;
+
+
+--COUNT(), AVG(), SUM()
+SELECT COUNT(*) 
+FROM  FUNCIONARIO 
+GO
+
+SELECT 
+	(SELECT COUNT(*) FROM  FUNCIONARIO) +
+	(SELECT COUNT(*) FROM DEPENDENTE)
+	AS 'total_pessoas';
+GO
+
+SELECT 
+	(SELECT MAX(Salario) FROM  FUNCIONARIO) +
+	(SELECT AVG(Salario) FROM FUNCIONARIO)
+	AS 'valor_acima_media';
+GO
+
+SELECT AVG(Salario)
+FROM  FUNCIONARIO;
+GO
+
+
+SELECT SUM(Salario)
+FROM FUNCIONARIO;
+GO
+
+
+---LIKE
+DECLARE @AnoNascimento INT
+
+SET @AnoNascimento = (SELECT Datanasc
+						FROM FUNCIONARIO
+						WHERE Pnome = 'Joice');
+
+PRINT YEAR(@AnoNascimento);
+
+
+--Recupere o(s) funcion�rio(s) nascido(s) no ano de 72.
+SELECT *
+FROM FUNCIONARIO 
+WHERE YEAR (Datanasc) LIKE '__72%';
+GO
+
+--IN
+SELECT *
+FROM FUNCIONARIO
+WHERE Salario IN (25000, 30000);
+
+--Between
+SELECT *
+FROM FUNCIONARIO
+WHERE Dnr = 5
+  AND Salario BETWEEN 30000 AND 40000;
+GO
+
+SELECT Pnome AS Nome, Unome AS Sobrenome
+FROM FUNCIONARIO;
+GO
+
+SELECT F.Pnome
+FROM FUNCIONARIO AS F, DEPARTAMENTO AS D
+WHERE F.Dnr = D.Dnumero
+  AND D.Dnome = 'Pesquisa';
+GO
+
+
+SELECT F.Cpf
+FROM FUNCIONARIO AS F
+WHERE F.Pnome = 'Fernando';
+
+SELECT TE.Horas,TE.Pnr
+FROM TRABALHA_EM AS TE
+WHERE TE.Fcpf = ( SELECT Cpf
+					FROM FUNCIONARIO AS F
+					WHERE Pnome = 'Fernando');
+SELECT *
+FROM FUNCIONARIO AS F,TRABALHA_EM AS TE
+WHERE F.Cpf = TE.Fcpf;
+
+
+--COM JOIN
+SELECT *
+FROM FUNCIONARIO AS F, TRABALHA_EM AS TE
+WHERE F.Cpf = TE.Fcpf
+AND TE.Pnr IN(	SELECT Pnr
+					FROM TRABALHA_EM
+					WHERE Fcpf = '33344555587')
+AND TE.Horas IN ( SELECT Horas
+					FROM TRABALHA_EM
+					WHERE Fcpf = '33344555587')
+AND NOT F.Pnome = 'Fernando';
