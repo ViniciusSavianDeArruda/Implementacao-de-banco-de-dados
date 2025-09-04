@@ -53,5 +53,35 @@ Aluno: **Vinicius Arruda**
 
 ---
 
+### 📅 Aula 02/08/25 – Funções no SQL Server
+
+- **Funções Escalares** → retornam **um único valor** (número, texto, data).  
+  - Usadas quando você precisa de **um resultado por linha** dentro de consultas.  
+  - **Exemplo visto**: `fn_CalcularIdade(@Datanasc)`  
+    - Calcula a idade do funcionário considerando se ele já fez aniversário no ano corrente.
+
+- **Funções de Tabela (Table-Valued Functions)** → retornam **uma tabela inteira**, como se fosse uma **view parametrizada**.  
+  - Útil para consultas que precisam **filtrar várias linhas** de acordo com um parâmetro.  
+  - **Exemplo visto**: `fn_Funcionario(@NomeDpt)`  
+    - Retorna todos os funcionários de um departamento específico, mostrando nome e departamento.
+
+- **Funções de Tabela Multi-Statement** → permitem **várias instruções** dentro da função e retornam uma tabela declarada internamente.  
+  - Ideal quando o cálculo precisa de **mais de um passo**, como somas ou filtros complexos.  
+  - **Exemplo visto**: `fn_SalarioAnul(@Cpf)`  
+    - Retorna nome completo, salário mensal e salário anual de um funcionário, já considerando férias e 13º salário.
+
+- **Funções com múltiplos parâmetros** → aceitam mais de um valor de entrada para realizar cálculos dinâmicos.  
+  - Permitem criar funções **flexíveis e reutilizáveis**.  
+  - **Exemplo visto**: `fn_SalarioAnualComBonus(@Salario, @BonusPercentual)`  
+    - Calcula o salário anual incluindo um bônus percentual definido pelo parâmetro.
+
+- **Exemplos práticos trabalhados em aula**:  
+  - cálculo de idade de funcionários;  
+  - listagem de funcionários por departamento;  
+  - cálculo de salário anual com férias e 13º;  
+  - cálculo de salário anual incluindo bônus percentual;  
+  - uso de **variáveis**, **SELECT**, **INSERT INTO tabela interna** e **RETURN** para retornar resultados.
+
+
 ## 📂 Organização  
 Cada aula possui um arquivo `.sql` com os códigos da prática em sala, organizados por data.  

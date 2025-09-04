@@ -357,4 +357,327 @@ SELECT @Nome_Aluno AS 'Nome do Aluno',
 
 ---
 
+## 🔹 O que são Funções?
+
+**Funções** são rotinas reutilizáveis no banco de dados que **sempre retornam um valor ou uma tabela**. Elas diferem das *stored procedures* por:
+
+- ✅ **Sempre retornam um resultado**
+- ✅ **Podem ser usadas em consultas** (`SELECT`, `WHERE`, `JOIN`)
+- ✅ **Facilitam o reuso de lógica**
+- ✅ **Aceitam parâmetros de entrada**
+- ❌ **Não podem modificar dados** (somente leitura)
+
+---
+
+## 🎯 Tipos de Funções
+
+### 1️⃣ **Função Escalar (Scalar Function)**
+
+**Retorna um único valor** (número, texto, data, etc.)
+
+#### 📝 Sintaxe
+```sql
+CREATE FUNCTION NomeFuncao (@parametro TipoDado)
+RETURNS TipoDado
+AS
+BEGIN
+    RETURN expressao
+END;
+```
+
+#### 💡 Exemplo Prático
+```sql
+-- Criação da função
+CREATE FUNCTION dbo.CalcularIdade (@DataNasc DATE)
+RETURNS INT
+AS
+BEGIN
+    RETURN DATEDIFF(YEAR, @DataNasc, GETDATE()) - 
+           CASE 
+               WHEN MONTH(@DataNasc) > MONTH(GETDATE()) OR 
+                    (MONTH(@DataNasc) = MONTH(GETDATE()) AND DAY(@DataNasc) > DAY(GETDATE()))
+               THEN 1 
+               ELSE 0 
+           END;
+END;
+
+-- Uso da função
+SELECT 
+    Pnome,
+    DataNasc,
+    dbo.CalcularIdade(DataNasc) AS Idade
+FROM FUNCIONARIO
+WHERE dbo.CalcularIdade(DataNasc) >= 18;
+```
+
+#### ✨ Características
+- Pode ser usada em `SELECT`, `WHERE`, `JOIN`, `ORDER BY`
+- Retorna apenas um valor por linha
+- Ideal para cálculos e transformações
+
+---
+
+### 2️⃣ **Função de Tabela (Table-Valued Function)**
+
+**Retorna uma tabela completa** que pode ser usada como uma tabela normal.
+
+#### 💡 Exemplo Prático
+```sql
+-- Criação da função
+CREATE FUNCTION dbo.FuncionariosPorDepartamento (@DeptoID INT)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        f.Pnome,
+        f.Salario,
+        d.Dnome AS Departamento
+    FROM FUNCIONARIO f
+    INNER JOIN DEPARTAMENTO d ON f.Dno = d.Dnumero
+    WHERE f.Dno = @DeptoID
+);
+
+-- Uso da função
+SELECT * FROM dbo.FuncionariosPorDepartamento(1);
+
+-- Pode ser usada em JOINs
+SELECT 
+    f.Pnome,
+    f.Salario,
+    p.Nome_projeto
+FROM dbo.FuncionariosPorDepartamento(1) f
+INNER JOIN TRABALHA_EM te ON f.Cpf = te.Fcpf
+INNER JOIN PROJETO p ON te.Pnr = p.Projnumero;
+```
+
+---
+
+### 3️⃣ **Função de Tabela Multi-Statement**
+
+**Permite lógica complexa** com múltiplas instruções antes de retornar a tabela.
+
+#### 💡 Exemplo Prático
+```sql
+CREATE FUNCTION dbo.RelatorioSalarial (@SalarioMinimo DECIMAL(10,2))
+RETURNS @TabelaRetorno TABLE
+(
+    Nome VARCHAR(50),
+    Salario DECIMAL(10,2),
+    Categoria VARCHAR(20),
+    Bonus DECIMAL(10,2)
+)
+AS
+BEGIN
+    -- Inserir funcionários com salário baixo
+    INSERT INTO @TabelaRetorno
+    SELECT 
+        Pnome, 
+        Salario, 
+        'Baixo',
+        Salario * 0.15  -- 15% de bônus
+    FROM FUNCIONARIO
+    WHERE Salario < @SalarioMinimo;
+    
+    -- Inserir funcionários com salário alto
+    INSERT INTO @TabelaRetorno
+    SELECT 
+        Pnome, 
+        Salario, 
+        'Alto',
+        Salario * 0.10  -- 10% de bônus
+    FROM FUNCIONARIO
+    WHERE Salario >= @SalarioMinimo;
+    
+    RETURN;
+END;
+
+-- Uso
+SELECT * FROM dbo.RelatorioSalarial(5000)
+ORDER BY Categoria, Salario DESC;
+```
+
+---
+
+### 4️⃣ **Função Inline Table-Valued**
+
+**Mais eficiente** que multi-statement - retorna tabela com uma única instrução SELECT.
+
+#### 💡 Exemplo Prático
+```sql
+CREATE FUNCTION dbo.FuncionariosComBonus (@Percentual DECIMAL(5,2))
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        Pnome,
+        Salario,
+        Salario * (@Percentual / 100) AS Bonus,
+        Salario + (Salario * (@Percentual / 100)) AS SalarioTotal
+    FROM FUNCIONARIO
+    WHERE Salario > 0
+);
+
+-- Uso
+SELECT * FROM dbo.FuncionariosComBonus(12.5)
+WHERE SalarioTotal > 6000;
+```
+
+---
+
+### 5️⃣ **Funções com Múltiplos Parâmetros**
+
+**Maior flexibilidade** com vários parâmetros de entrada.
+
+#### 💡 Exemplo Prático
+```sql
+-- Função escalar com múltiplos parâmetros
+CREATE FUNCTION dbo.CalcularSalarioLiquido 
+(
+    @SalarioBruto DECIMAL(10,2),
+    @PercentualINSS DECIMAL(5,2) = 11.0,
+    @PercentualIR DECIMAL(5,2) = 15.0
+)
+RETURNS DECIMAL(10,2)
+AS
+BEGIN
+    DECLARE @INSS DECIMAL(10,2) = @SalarioBruto * (@PercentualINSS / 100);
+    DECLARE @IR DECIMAL(10,2) = (@SalarioBruto - @INSS) * (@PercentualIR / 100);
+    
+    RETURN @SalarioBruto - @INSS - @IR;
+END;
+
+-- Uso
+SELECT 
+    Pnome,
+    Salario AS SalarioBruto,
+    dbo.CalcularSalarioLiquido(Salario, DEFAULT, DEFAULT) AS SalarioLiquido,
+    dbo.CalcularSalarioLiquido(Salario, 8.0, 12.0) AS SalarioLiquidoPersonalizado
+FROM FUNCIONARIO;
+```
+
+---
+
+## 📊 Comparativo dos Tipos
+
+| Tipo de Função | Retorno | Performance | Uso Principal | Complexidade |
+|---|---|---|---|---|
+| **Escalar** | Valor único | ⚠️ Moderada | Cálculos linha a linha | 🟢 Baixa |
+| **Table-Valued** | Tabela | ⚠️ Moderada | Consultas parametrizadas | 🟢 Baixa |
+| **Multi-Statement** | Tabela | 🔴 Baixa | Lógica complexa | 🔴 Alta |
+| **Inline Table-Valued** | Tabela | 🟢 Alta | Consultas rápidas | 🟢 Baixa |
+
+---
+
+## 📋 Boas Práticas
+
+### ✅ **Recomendações**
+
+1. **Nomenclatura Clara**
+   ```sql
+   -- ✅ Bom
+   CREATE FUNCTION dbo.CalcularIdadeFuncionario(@DataNasc DATE)
+   
+   -- ❌ Evitar
+   CREATE FUNCTION CalcId(@d DATE)
+   ```
+
+2. **Use Inline quando possível**
+   ```sql
+   -- ✅ Preferível (mais rápida)
+   CREATE FUNCTION dbo.FuncionariosAtivos()
+   RETURNS TABLE
+   AS RETURN (SELECT * FROM FUNCIONARIO WHERE Status = 'Ativo');
+   ```
+
+3. **Validação de Parâmetros**
+   ```sql
+   CREATE FUNCTION dbo.CalcularDesconto(@Valor DECIMAL(10,2), @Percentual DECIMAL(5,2))
+   RETURNS DECIMAL(10,2)
+   AS
+   BEGIN
+       IF @Valor IS NULL OR @Valor <= 0 OR @Percentual IS NULL
+           RETURN 0;
+           
+       RETURN @Valor * (@Percentual / 100);
+   END;
+   ```
+
+4. **Documentação**
+   ```sql
+   /*
+   Função: dbo.CalcularIdade
+   Descrição: Calcula a idade precisa em anos considerando mês e dia
+   Parâmetros: @DataNasc - Data de nascimento
+   Retorno: Idade em anos (INT)
+   Autor: Vinicius Arruda
+   Data: 2025-01-XX
+   */
+   CREATE FUNCTION dbo.CalcularIdade(@DataNasc DATE)...
+   ```
+
+### ❌ **O que Evitar**
+
+- Funções escalares em grandes volumes de dados
+- Lógica muito complexa em funções inline
+- Funções que não retornam valores consistentes
+- Uso excessivo de multi-statement quando inline resolve
+
+---
+
+## 🔧 Exemplos Práticos
+
+### **Gerenciamento de Funções**
+
+```sql
+-- Listar todas as funções do usuário
+SELECT 
+    name AS NomeFuncao,
+    type_desc AS TipoFuncao,
+    create_date AS DataCriacao
+FROM sys.objects 
+WHERE type IN ('FN', 'IF', 'TF')
+ORDER BY name;
+
+-- Excluir uma função
+DROP FUNCTION IF EXISTS dbo.CalcularIdade;
+
+-- Alterar uma função existente
+ALTER FUNCTION dbo.CalcularIdade(@DataNasc DATE)
+RETURNS INT
+AS
+BEGIN
+    -- Nova implementação
+    RETURN DATEDIFF(YEAR, @DataNasc, GETDATE());
+END;
+```
+
+---
+
+## ⚡ Considerações de Performance
+
+### **Melhores Práticas de Performance**
+
+1. **Evite funções escalares em WHERE com grandes tabelas**
+   ```sql
+   -- ❌ Pode ser lento
+   SELECT * FROM FUNCIONARIO 
+   WHERE dbo.CalcularIdade(DataNasc) > 30;
+   
+   -- ✅ Melhor alternativa
+   SELECT * FROM FUNCIONARIO 
+   WHERE DATEDIFF(YEAR, DataNasc, GETDATE()) > 30;
+   ```
+
+2. **Prefira funções inline para consultas de tabela**
+   ```sql
+   -- ✅ Mais eficiente
+   CREATE FUNCTION dbo.FuncionariosVendas()
+   RETURNS TABLE
+   AS RETURN (
+       SELECT * FROM FUNCIONARIO WHERE Departamento = 'Vendas'
+   );
+   ```
+
 *Este estudo cobre os conceitos fundamentais para implementação de bancos de dados ativos no SQL Server, fornecendo base sólida para desenvolvimento de soluções robustas e eficientes.*
